@@ -1,0 +1,139 @@
+﻿@page "/empleados"
+
+@if (!ShowForm)
+{
+    <h3>Empleados (@Empleados.Count)</h3>
+    <div class="mb-2">
+        <button 
+    class="btn btn-success"
+            @onclick="()=>{ShowForm = !ShowForm;}">
+            Agregar
+        </button>
+    </div>
+}
+<div class="container">
+    @if (ShowForm)
+    {
+        <h3>@TituloForm</h3>
+            <EditForm Model="request" OnValidSubmit="Send">
+            <div class="mb-3 input-group">
+                <label class="input-group-text">Nombre</label>
+                <InputText class="form-control" @bind-Value="@request.Nombre"></InputText>
+            </div>
+            <div class="mb-3 input-group">
+                <label class="input-group-text">Telefono</label>
+                <InputText class="form-control" @bind-Value="@request.Telefono"></InputText>
+            </div>
+            <div class="mb-3 input-group">
+                <label class="input-group-text">Direccion</label>
+                <InputText class="form-control" @bind-Value="@request.Direccion"></InputText>
+            </div>
+            <div class="mb-3 input-group">
+                <label class="input-group-text">Cedula</label>
+                <InputText class="form-control" @bind-Value="@request.Cedula"></InputText>
+            </div>
+            <div class="mb-3 input-group">
+                <label class="input-group-text">Seguro</label>
+                <InputText class="form-control" @bind-Value="@request.Seguro"></InputText>
+            </div>
+
+            <div class="btn-group">
+                <button type="submit" class="btn btn-outline-success">Guardar</button>
+                <button @onclick="Cancelar" class="btn btn-outline-danger">Cancelar</button>
+            </div>
+        </EditForm>
+        <br/>
+    }
+    else
+    {
+        @foreach (var empleado in Empleados)
+        {
+            <div class="card" style="width:18rem;">
+                <div class="card-body">
+                    <label class="card-title">@empleado.Nombre</label>
+                    <div class="card-text">
+                        <label><b>Telefono:</b> @empleado.Telefono</label>
+                    </div>
+                    <button @onclick="()=>Seleccionar(empleado.Id)" class="btn btn-warning">Editar</button>
+                    <button @onclick="()=>Eliminar(empleado)" class="btn btn-danger">Eliminar</button>
+                </div>
+            </div>
+        }
+    }
+    
+</div>
+@code {
+    public string TituloForm => request.Id == 0 ? "Agregar empleado" : "Modificar empleado";
+
+    public bool ShowForm { get; set; } = false;
+    public string Filtro { get; set; } = "";
+    public List<EmpleadoResponse> Empleados { get; set; }
+     = new List<EmpleadoResponse>();
+
+    public EmpleadoRequest request { get; set; }= new EmpleadoRequest();
+
+    void Cancelar()
+    {
+        request = new EmpleadoRequest();
+        ShowForm = false;
+    }
+
+    async Task CagarEmpleados()
+    {
+        var resultado = await empleadosServices.Consultar(Filtro);
+        if (resultado.Success)
+        {
+            Empleados = resultado.Data!;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CagarEmpleados();
+    }
+
+    public async Task Send()
+    {
+        if (request.Id == 0)
+        {
+            //Debo registrar el empledo..
+            var r = await empleadosServices.Crear(request);
+            if (r.Success)
+            {
+                Cancelar();
+                await CagarEmpleados();
+                StateHasChanged();
+            }
+        }
+        else
+        {
+            //Debo solicitar modificar el empleado...
+            var r = await empleadosServices.Modificar(request);
+            if (r.Success)
+            {
+                Cancelar();
+                await CagarEmpleados();
+                StateHasChanged();
+            }
+
+        }
+    }
+         public void Seleccionar(int Id)
+         {
+            ShowForm = true;
+            request = Empleados
+            .Where(c => c.Id == Id)
+            .Select(c => c.ToRequest())
+            .FirstOrDefault()?? new EmpleadoRequest();
+         }
+    public async Task Eliminar(EmpleadoResponse empleado)
+    {
+        var resultado = await empleadosServices.Eliminar(empleado.ToRequest());
+        if (resultado.Success)
+        {
+            await CagarEmpleados();
+            StateHasChanged();
+        }
+    }
+}
+
